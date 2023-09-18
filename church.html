@@ -32,14 +32,14 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 L. marker([42.148251,-73.034033]).addTo(map);
 
+// Initialize circle layer group
+const circles = L.layerGroup().addTo(map);
+
 let addedChurches = [];
 fetch('./church_data.json')
     .then((response) => response.json())
     .then((json) => addedChurches = json)
 	.then(updateMap());
-
-// Initialize circle layer group
-const circles = L.layerGroup().addTo(map);
 
 // API endpoint
 const apiUrl = 'https://apiv4.updateparishdata.org/Churchs/?lat=42.348&long=-71.1&pg=1';
