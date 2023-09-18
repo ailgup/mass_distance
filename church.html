@@ -35,17 +35,8 @@ L. marker([42.148251,-73.034033]).addTo(map);
 let addedChurches = [];
 fetch('./church_data.json')
     .then((response) => response.json())
-    .then((json) => console.log(json));
-const reader = new FileReader();
+    .then((json) => addedChurches = json);
 
-    reader.onload = function (event) {
-      try {
-        addedChurches = JSON.parse('church_data.json');
-        callback(jsonData);
-      } catch (error) {
-        console.error('Error parsing JSON:', error);
-      }
-    };
 // Initialize circle layer group
 const circles = L.layerGroup().addTo(map);
 
