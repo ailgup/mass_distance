@@ -191,9 +191,9 @@ document.getElementById('export-button').addEventListener('click', () => {
 
 fetch('./church_data.json')
     .then((response) => response.json())
-    .then((json) => addedChurches = json)
-	.then(updateMap());
+    .then((json) => addedChurches = json);
 
+window.onload = updateMap();
 </script>
 </body>
 </html>
