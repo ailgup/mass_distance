@@ -36,10 +36,7 @@ L. marker([42.148251,-73.034033]).addTo(map);
 const circles = L.layerGroup().addTo(map);
 
 let addedChurches = [];
-fetch('./church_data.json')
-    .then((response) => response.json())
-    .then((json) => addedChurches = json)
-	.then(updateMap());
+
 
 // API endpoint
 const apiUrl = 'https://apiv4.updateparishdata.org/Churchs/?lat=42.348&long=-71.1&pg=1';
@@ -191,6 +188,11 @@ document.getElementById('day-filter').addEventListener('change', updateMap);
 document.getElementById('export-button').addEventListener('click', () => {
     exportData();
 });
+
+fetch('./church_data.json')
+    .then((response) => response.json())
+    .then((json) => addedChurches = json)
+	.then(updateMap());
 
 </script>
 </body>
