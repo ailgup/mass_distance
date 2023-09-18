@@ -3,27 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Church Locator</title>
+    <title>Weekday Church Distance</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
 </head>
 <body>
     <div id="map" style="height: 800px;"></div>
     <label for="radius-slider">Circle Radius (miles):</label>
-    <input id="radius-slider" type="range" min="0" max="12" step="0.1" value="1" />
+    <input id="radius-slider" type="range" min="0" max="14" step="0.1" value="12" />
     <label for="day-filter">Filter by Day of the Week:</label>
     <select id="day-filter">
         <option value="">All</option>
         <option value="Sunday">Sunday</option>
         <option value="Monday">Monday</option>
         <option value="Tuesday">Tuesday</option>
-        <option value="Wednesday">Wednesday</option>
+        <option selected value="Wednesday">Wednesday</option>
         <option value="Thursday">Thursday</option>
         <option value="Friday">Friday</option>
         <option value="Saturday">Saturday</option>
     </select>
-	<progress id="progress-bar" max="100" value="0"></progress>
-    <button id="export-button">Export Data</button>
-	<button id = 'load-churches-button'>Begin</button>
+	<progress hidden id="progress-bar" max="100" value="0"></progress>
+    <button hidden id="export-button">Export Data</button>
+	<button hidden id = 'load-churches-button'>Begin</button>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
 	// Initialize Leaflet map
@@ -35,7 +35,8 @@ L. marker([42.148251,-73.034033]).addTo(map);
 let addedChurches = [];
 fetch('./church_data.json')
     .then((response) => response.json())
-    .then((json) => addedChurches = json);
+    .then((json) => addedChurches = json)
+	.then(updateMap());
 
 // Initialize circle layer group
 const circles = L.layerGroup().addTo(map);
