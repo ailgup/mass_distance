@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekday Church Distance</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+</head>
+<body>
+    <div id="map" style="height: 90vh;"></div>
+    <label for="radius-slider">Circle Radius (<span id="slider-value"></span> miles):</label>
+    <input id="radius-slider" type="range" min="0" max="16" step=".1" value="14" style="width: 100%" />
+    <label for="day-filter">Filter by Day of the Week:</label>
+    <select id="day-filter">
+        <option value="">All</option>
+        <option value="Sunday">Sunday</option>
+        <option value="Monday">Monday</option>
+        <option value="Tuesday">Tuesday</option>
+        <option selected value="Wednesday">Wednesday</option>
+        <option value="Thursday">Thursday</option>
+        <option value="Friday">Friday</option>
+        <option value="Saturday">Saturday</option>
+    </select>
+	<progress hidden id="progress-bar" max="100" value="0"></progress>
+    <button hidden id="export-button">Export Data</button>
+	<button hidden id = 'load-churches-button'>Begin</button>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+	// Initialize Leaflet map
+const map = L.map('map').setView([42.348, -71.1], 8);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+L. marker([42.148251,-73.034033]).addTo(map);
+
+// Initialize circle layer group
+const circles = L.layerGroup().addTo(map);
+
+let addedChurches = [];
+
+
+// API endpoint
+const apiUrl = 'https://apiv4.updateparishdata.org/Churchs/?lat=42.348&long=-71.1&pg=1';
+// Function to check if a church has worship time on the selected day
+function hasWorshipDay(church, day) {
+    //console.log (church.church_worship_times.length)
+	//console.log (church.name, church.church_address_city_name)
+	return church.church_worship_times.some(worshipTime => {
+		if (worshipTime.day_of_week == null){
+			return false
+		}
+        return worshipTime.day_of_week.includes(day) || worshipTime.day_of_week.includes('Weekdays');
+    });
+}
+// Function to check if a church is already added to the map
+function isChurchAdded(church, addedChurches) {
+    return addedChurches.some(addedChurch => {
+        const latDiff = Math.abs(parseFloat(addedChurch.latitude) - parseFloat(church.latitude));
+        const lonDiff = Math.abs(parseFloat(addedChurch.longitude) - parseFloat(church.longitude));
+        return latDiff < 0.01 && lonDiff < 0.01; // Adjust the threshold as needed
+    });
+}
+
+// Function to make API calls in a grid-like fashion
+async function makeGridAPICalls() {
+    const gridSize = 0.2; // Adjust grid size as needed (in degrees)
+    const minLat = 41.186;
+    const maxLat = 42.886;
+    const minLon = -73.508;
+    const maxLon = -69.92;
+    const radius = parseFloat(document.getElementById('radius-slider').value);
+    const selectedDay = document.getElementById('day-filter').value;
+	let itt_count = 0;
+    const num_itters = Math.ceil(Math.abs(maxLat-minLat)/gridSize) * Math.ceil(Math.abs(maxLon-minLon)/gridSize)
+    for (let lat = minLat; lat <= maxLat; lat += gridSize) {
+        for (let lon = minLon; lon <= maxLon; lon += gridSize) {
+            const apiUrl = `https://apiv4.updateparishdata.org/Churchs/?lat=${lat}&long=${lon}&pg=1`;
+
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+			
+			itt_count++;
+			// Update the progress bar
+			const progressBar = document.getElementById('progress-bar');
+			progressBar.value = (itt_count / num_itters) * 100;
+			
+            data.forEach(church => {
+                if (!isChurchAdded(church, addedChurches) && (hasWorshipDay(church, selectedDay) || selectedDay === '')) {
+                    
+					const churchLat = parseFloat(church.latitude);
+                    const churchLon = parseFloat(church.longitude);
+					if (!isNaN(churchLat) && !isNaN(churchLon)){
+                    const circle = L.circle([churchLat, churchLon], {
+                        color: 'blue',
+                        fillColor: 'blue',
+                        fillOpacity: 0.5,
+                        radius: radius * 1609.34, // Convert miles to meters
+						weight: 0, // Set the border width to zero
+                    }).addTo(circles);
+
+                    circle.bindPopup(
+                        `<b>${church.name}</b><br>${church.church_address_street_address}, ${church.church_address_city_name}<br>{church.phone_number}`
+                    );
+
+                    addedChurches.push(church);
+					}
+                }
+            });
+        }
+    }
+}
+
+// Function to export data as JSON
+function exportData() {
+    // Create a Blob containing the JSON data
+    const blob = new Blob([JSON.stringify(addedChurches)], { type: 'application/json' });
+
+    // Create a download link and trigger a click event
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'church_data.json';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+
+// Function to update the map based on the selected day and radius
+function updateMap() {
+	//console.log("upd");
+    const radius = parseFloat(document.getElementById('radius-slider').value);
+    const selectedDay = document.getElementById('day-filter').value;
+
+	//slider
+	const sliderValueText = document.getElementById('slider-value');
+
+    const sliderValue = parseFloat(document.getElementById('radius-slider').value); // Get the slider's value
+    sliderValueText.textContent = `${sliderValue}`; // Update the text content
+	
+    // Clear existing circles
+    circles.clearLayers();
+
+    addedChurches.forEach(church => {
+        const lat = parseFloat(church.latitude);
+        const lon = parseFloat(church.longitude);
+        const worshipTimes = church.church_worship_times || [];
+
+        // Check if any worship time matches the day filter or is 'Weekdays'
+        const shouldDisplay = worshipTimes.some(worshipTime => {
+            const dayOfWeek = worshipTime.day_of_week || ""; // Handle null values
+            const service_typename = worshipTime.service_typename || ""; // Handle null values
+            if (dayOfWeek.includes(selectedDay) ||
+                dayOfWeek.includes("Weekdays")){
+				return (
+				//only mass times not devotionals/confessions
+                service_typename.includes("Week Days") ||
+                service_typename.includes("Weekend")
+            );
+				}
+			
+
+        });
+
+        if (shouldDisplay) {
+            //console.log(church.name)
+			const circle = L.circle([lat, lon], {
+                color: 'blue',
+                fillColor: 'blue',
+                fillOpacity: 0.35,
+                radius: radius * 1609.34, // Convert miles to meters
+                weight: 0, // Set the border width to zero
+            }).addTo(circles);
+
+            // Add popup with church info
+            circle.bindPopup(
+                `<b>${church.name}</b><br>${church.church_address_street_address}, ${church.church_address_city_name}<br>${church.phone_number}`
+            );
+        }
+    });
+}
+
+// Event listener for "Load Churches" button
+document.getElementById('load-churches-button').addEventListener('click', () => {
+    const radius = parseFloat(document.getElementById('radius-slider').value);
+    makeGridAPICalls(radius);
+});
+
+// Event listener for radius slider
+document.getElementById('radius-slider').addEventListener('input', updateMap);
+
+// Event listener for day filter
+document.getElementById('day-filter').addEventListener('change', updateMap);
+
+// Event listener for export button
+document.getElementById('export-button').addEventListener('click', () => {
+    exportData();
+});
+
+fetch('./church_data.json')
+    .then((response) => response.json())
+    .then((json) => {
+        addedChurches = json;
+        updateMap(); // This line logs the data after it's been assigned
+    })
+
+</script>
+</body>
+</html>
